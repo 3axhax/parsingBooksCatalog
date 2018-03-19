@@ -10,9 +10,3 @@
     <br><a href="<?= $data->pathToReport ?>" class="btn btn-success">Загрузить последний отчет</a>
 <?php endif;?>
 <br>
-<pre>
-    <?php
-    echo "<br>";
-    if (is_object($data)) print_r($data->report);
-    ?>
-</pre>

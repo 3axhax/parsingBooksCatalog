@@ -17,6 +17,19 @@ class BookCatalog
     public $dataFromTable;
     public $pathToReport;
 
+    public function __construct()
+    {
+        $this->dataFromTable = self::getDataFromTable();
+    }
+
+    static public function getDataFromTable()
+    {
+        $db = Db::getConnection();
+        $sql = $db->prepare('SELECT `id`,`description_ru`,`isbn`,`isbn2`,`isbn3`,`isbn4`,`isbn_wrong`  FROM '. self::tableName());
+        $sql->execute();
+        return $sql->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     static protected function tableName()
     {
         return 'books_catalog';
@@ -25,22 +38,6 @@ class BookCatalog
     static protected function reportPath()
     {
         return 'report';
-    }
-
-    public static function testReg($str)
-    {
-        $db = Db::getConnection();
-        $id = 1;
-        $column = '`isbn2`';
-        $value = '123456';
-        $sql = $db->prepare('UPDATE '.self::tableName().' SET '.$column.' = ? WHERE id = ?');
-
-
-        /*$sql->bindParam(':id', $id);
-        $sql->bindParam(':column', $column);
-        $sql->bindParam(':value', $value);*/
-        $sql->execute(array($value, $id));
-        return $sql;
     }
 
     private function isIsbn10Format($str)
@@ -103,27 +100,6 @@ class BookCatalog
         return $matches;
     }
 
-    public function __construct()
-    {
-        $this->dataFromTable = self::getDataFromTable();
-    }
-
-    static public function getDataFromTable()
-    {
-        $db = Db::getConnection();
-        $sql = $db->prepare('SELECT `id`,`description_ru`,`isbn`,`isbn2`,`isbn3`,`isbn4`,`isbn_wrong`  FROM '. self::tableName());
-        $sql->execute();
-        return $sql->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    private function writeNewReport($id, $event, $comment)
-    {
-        $i = count($this->report);
-        $this->report[$i]['id in DB'] = $id;
-        $this->report[$i]['event'] = $event;
-        $this->report[$i]['comment'] = $comment;
-    }
-
     private function checkExistNum10($row)
     {
         $isExist = false;
@@ -162,7 +138,6 @@ class BookCatalog
         }
         return $isExist;
     }
-
     private function checkExistNum13($row)
     {
         $isExist = false;
@@ -221,7 +196,6 @@ class BookCatalog
             $i += $num[0][1]+1;
         }
     }
-
     private function checkFindNum13($row)
     {
         if ($this->checkExistNum13($row)) return false;
@@ -249,6 +223,14 @@ class BookCatalog
             $this->checkFindNum10($row);
             $this->checkFindNum13($row);
         }
+    }
+
+    private function writeNewReport($id, $event, $comment)
+    {
+        $i = count($this->report);
+        $this->report[$i]['id in DB'] = $id;
+        $this->report[$i]['event'] = $event;
+        $this->report[$i]['comment'] = $comment;
     }
 
     public function getExcelReport()

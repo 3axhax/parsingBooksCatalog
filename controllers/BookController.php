@@ -9,12 +9,15 @@ class BookController extends SiteController
 {
     public function actionIndex()
     {
+        $data = '';
         if (isset($_REQUEST['submitbutton'])) 
         {
-            print_r('HI');
+            $data = new Book();
+            $data->checkExistIsbn();
+            $data->getExcelReport();
         }
         $this->setTitle('Проверить БД');
-        return $this->render('books/index');
+        return $this->render('books/index', ['data' => $data]);
     }
     public function actionList()
     {

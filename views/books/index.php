@@ -6,10 +6,13 @@
         <button type="submit" class="btn btn-success" name="submitbutton">Проверить <span class="glyphicon glyphicon-check"></button>
     </div>
 </form>
+<?php if(is_object($data) && isset($data->pathToReport)):?>
+    <br><a href="<?= $data->pathToReport ?>" class="btn btn-success">Загрузить последний отчет</a>
+<?php endif;?>
+<br>
 <pre>
     <?php
-    //echo substr('12345678901234567', 10, 13);
     echo "<br>";
-    print_r(\models\Book::getDescription());
+    if (is_object($data)) print_r($data->report);
     ?>
 </pre>

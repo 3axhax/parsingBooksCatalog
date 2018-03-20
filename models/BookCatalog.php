@@ -7,13 +7,13 @@ use PDO;
 
 class BookCatalog
 {
-    const REG_10_NUMBER = "/[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}/";
-    const REG_ISBN10 = "/[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}/";
-    const REG_13_NUMBER = "/[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}[\D]{0,5}[\d]{1}/";
-    const REG_ISBN13 = "/[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}-?[\d]{1}/";
+    const REG_10_NUMBER = "/[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}/";
+    const REG_ISBN10 = "/[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}/";
+    const REG_13_NUMBER = "/[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}/";
+    const REG_ISBN13 = "/[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}/";
     public $id;
     public $isbn;
-    public $report = [];
+    public $report = ['new'=>[],'exist'=>[]];
     public $dataFromTable;
     public $pathToReport;
 
@@ -25,7 +25,7 @@ class BookCatalog
     static public function getDataFromTable()
     {
         $db = Db::getConnection();
-        $sql = $db->prepare('SELECT `id`,`description_ru`,`isbn`,`isbn2`,`isbn3`,`isbn4`,`isbn_wrong`  FROM '. self::tableName());
+        $sql = $db->prepare('SELECT `id`,`description_ru`,`isbn`,`eancode`,`isbn2`,`isbn3`,`isbn4`,`isbn_wrong`  FROM '. self::tableName());
         $sql->execute();
         return $sql->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -61,27 +61,38 @@ class BookCatalog
 
     private function saveIsbn($isbn, &$row)
     {
-        
-
         if ($row['isbn2'] == '') {
             $column = 'isbn2';
             $value = $isbn;
             $row['isbn2'] = $value;
-            $this->writeNewReport($row['id'], 'Добавлен новый ISBN', 'В записе с ID = ' . $row['id'] . ' добавлен isbn: ' . $isbn.', в поле: isbn2');
+            $this->writeNewReport('new', $row['id'], $row['eancode'], $isbn, 'isbn2');
         }
         elseif ($row['isbn3'] == ''){
             $column = 'isbn3';
             $value = $isbn;
             $row['isbn3'] = $value;
-            $this->writeNewReport($row['id'], 'Добавлен новый ISBN', 'В записе с ID = ' . $row['id'] . ' добавлен isbn: ' . $isbn.', в поле: isbn3');
+            $this->writeNewReport('new', $row['id'], $row['eancode'], $isbn, 'isbn3');
         }
         else {
             $column = 'isbn4';
-            $this->writeNewReport($row['id'], 'Добавлен новый ISBN', 'В записе с ID = ' . $row['id'] . ' добавлен isbn: ' . $isbn.', в поле: isbn4');
+            $this->writeNewReport('new', $row['id'], $row['eancode'], $isbn, 'isbn4');
             if ($row['isbn4'] == '') $value = $isbn;
             else $value = $row['isbn4'].', '.$isbn;
             $row['isbn4'] = $value;
         }
+        $db = Db::getConnection();
+        $sql = $db->prepare('UPDATE `'.self::tableName().'` SET '.$column.' = :value WHERE `'.self::tableName().'`.`id` = :id');
+        $sql->bindParam(':id', $row['id']);
+        $sql->bindParam(':value', $value);
+        $sql->execute();
+    }
+    private function saveWrongIsbn($isbn, &$row)
+    {
+        $column = 'isbn4';
+        $this->writeNewReport('new', $row['id'], $row['eancode'], $isbn, 'isbn_wrong');
+        if ($row['isbn_wrong'] == '') $value = $isbn;
+        else $value = $row['isbn_wrong'].', '.$isbn;
+        $row['isbn_wrong'] = $value;
         $db = Db::getConnection();
         $sql = $db->prepare('UPDATE `'.self::tableName().'` SET '.$column.' = :value WHERE `'.self::tableName().'`.`id` = :id');
         $sql->bindParam(':id', $row['id']);
@@ -100,27 +111,27 @@ class BookCatalog
         return $matches;
     }
 
-    private function checkExistNum10($row)
+    private function checkExistIsbn($row)
     {
         $isExist = false;
         if ($num = preg_replace('/[^\d]/','',$row['description_ru']))
         {
             if (strlen($num) > 9)
             {
-                if (isset($row['isbn']) && ($row['isbn'] != '') && (strpos($num, substr(preg_replace('/[^\d]/','',$row['isbn']), 3)) !== false))
+                if (isset($row['isbn']) && ($row['isbn'] != '') && (strpos($num, preg_replace('/[^\d]/','',$row['isbn'])) !== false))
                 {
                     $isExist = true;
-                    $this->writeNewReport($row['id'], 'В описании известный isbn', 'В записе с ID = '.$row['id'].' найдено совпадение с полем isbn. (isbn10)');
+                    $this->writeNewReport('exist', $row['id'], $row['eancode'], preg_replace('/[^\d]/','',$row['isbn']), 'isbn');
                 }
-                if (isset($row['isbn2']) && ($row['isbn2'] != '') && (strpos($num, substr(preg_replace('/[^\d]/','',$row['isbn2']), 3)) !== false))
+                if (isset($row['isbn2']) && ($row['isbn2'] != '') && (strpos($num, preg_replace('/[^\d]/','',$row['isbn2'])) !== false))
                 {
                     $isExist = true;
-                    $this->writeNewReport($row['id'], 'В описании известный isbn', 'В записе с ID = '.$row['id'].' найдено совпадение с полем isbn2. (isbn10)');
+                    $this->writeNewReport('exist', $row['id'], $row['eancode'], preg_replace('/[^\d]/','',$row['isbn2']), 'isbn2');
                 }
-                if (isset($row['isbn3']) && ($row['isbn3'] != '') && (strpos($num, substr(preg_replace('/[^\d]/','',$row['isbn3']), 3)) !== false))
+                if (isset($row['isbn3']) && ($row['isbn3'] != '') && (strpos($num, preg_replace('/[^\d]/','',$row['isbn3'])) !== false))
                 {
                     $isExist = true;
-                    $this->writeNewReport($row['id'], 'В описании известный isbn', 'В записе с ID = '.$row['id'].' найдено совпадение с полем isbn3. (isbn10)');
+                    $this->writeNewReport('exist', $row['id'], $row['eancode'], preg_replace('/[^\d]/','',$row['isbn3']), 'isbn3');
                 }
                 if (isset($row['isbn4']) && ($row['isbn4'] != ''))
                 {
@@ -130,45 +141,7 @@ class BookCatalog
                         if (strpos($num, substr(preg_replace('/[^\d]/','',$isbn), 3)) !== false)
                         {
                             $isExist = true;
-                            $this->writeNewReport($row['id'], 'В описании известный isbn', 'В записе с ID = '.$row['id'].' найдено совпадение с полем isbn4. (isbn10)');
-                        }
-                    }
-                }
-            }
-        }
-        return $isExist;
-    }
-    private function checkExistNum13($row)
-    {
-        $isExist = false;
-        if ($num = preg_replace('/[^\d]/','',$row['description_ru']))
-        {
-            if (strlen($num) > 12)
-            {
-                if (isset($row['isbn']) && ($row['isbn'] != '') && (strpos($num, preg_replace('/[^\d]/','',$row['isbn'])) !== false))
-                {
-                    $isExist = true;
-                    $this->writeNewReport($row['id'], 'В описании известный isbn', 'В записе с ID = '.$row['id'].' найдено совпадение с полем isbn. (isbn13)');
-                }
-                if (isset($row['isbn2']) && ($row['isbn2'] != '') && (strpos($num, preg_replace('/[^\d]/','',$row['isbn2'])) !== false))
-                {
-                    $isExist = true;
-                    $this->writeNewReport($row['id'], 'В описании известный isbn', 'В записе с ID = '.$row['id'].' найдено совпадение с полем isbn2. (isbn13)');
-                }
-                if (isset($row['isbn3']) && ($row['isbn3'] != '') && (strpos($num, preg_replace('/[^\d]/','',$row['isbn3'])) !== false))
-                {
-                    $isExist = true;
-                    $this->writeNewReport($row['id'], 'В описании известный isbn', 'В записе с ID = '.$row['id'].' найдено совпадение с полем isbn3. (isbn13)');
-                }
-                if (isset($row['isbn4']) && ($row['isbn4'] != ''))
-                {
-                    $isbn4 = explode(',', $row['isbn4']);
-                    foreach ($isbn4 as $isbn)
-                    {
-                        if (strpos($num, preg_replace('/[^\d]/','',$isbn)) !== false)
-                        {
-                            $isExist = true;
-                            $this->writeNewReport($row['id'], 'В описании известный isbn', 'В записе с ID = '.$row['id'].' найдено совпадение с полем isbn4. (isbn13)');
+                            $this->writeNewReport('exist', $row['id'], $row['eancode'], preg_replace('/[^\d]/','',$isbn), 'isbn4');
                         }
                     }
                 }
@@ -179,36 +152,40 @@ class BookCatalog
 
     private function checkFindNum10($row)
     {
-        if ($this->checkExistNum10($row)) return false;
+        if ($this->checkExistIsbn($row)) return false;
         $i = 0;
         while (($num = $this->get10number(substr($row['description_ru'], $i))) && !empty($num))
         {
             if (!$this->isIsbn10Format($num[0][0])) {
-                $this->writeNewReport($row['id'], 'В описании неверный формат isbn10', 'В записе с ID = ' . $row['id'] . ' встречается неверный isbn10: ' . $num[0][0]);
+                $isbnWrong = explode(', ', $row['isbn_wrong']);
+                if (!in_array($num[0][0], $isbnWrong)) $this->saveWrongIsbn($num[0][0], $row);
             }
             else
             {
                 if(!$this->checkSumEAN13('978'.$num[0][0])){
-                    $this->writeNewReport($row['id'], 'В описании неверная контрольная сумма EAN13', 'В записе с ID = ' . $row['id'] . ' встречается isbn10 с неверной контрольной суммой: ' . $num[0][0]);
+                    $isbnWrong = explode(', ', $row['isbn_wrong']);
+                    if (!in_array($num[0][0], $isbnWrong)) $this->saveWrongIsbn($num[0][0], $row);
                 }
-                else $this->saveIsbn('978'.$num[0][0], $row);
+                else $this->saveIsbn($num[0][0], $row);
             }
             $i += $num[0][1]+1;
         }
     }
     private function checkFindNum13($row)
     {
-        if ($this->checkExistNum13($row)) return false;
+        if ($this->checkExistIsbn($row)) return false;
         $i = 0;
         while (($num = $this->get13number(substr($row['description_ru'], $i))) && !empty($num))
         {
             if (!$this->isIsbn13Format($num[0][0])) {
-                $this->writeNewReport($row['id'], 'В описании неверный формат isbn13', 'В записе с ID = ' . $row['id'] . ' встречается неверный isbn13: ' . $num[0][0]);
+                $isbnWrong = explode(', ', $row['isbn_wrong']);
+                if (!in_array($num[0][0], $isbnWrong)) $this->saveWrongIsbn($num[0][0], $row);
             }
             else
             {
                 if(!$this->checkSumEAN13($num[0][0])){
-                    $this->writeNewReport($row['id'], 'В описании неверная контрольная сумма EAN13', 'В записе с ID = ' . $row['id'] . ' встречается isbn13 с неверной контрольной суммой: ' . $num[0][0]);
+                    $isbnWrong = explode(', ', $row['isbn_wrong']);
+                    if (!in_array($num[0][0], $isbnWrong)) $this->saveWrongIsbn($num[0][0], $row);
                 }
                 else $this->saveIsbn($num[0][0], $row);
             }
@@ -225,64 +202,64 @@ class BookCatalog
         }
     }
 
-    private function writeNewReport($id, $event, $comment)
+    private function writeNewReport($type, $id, $eancode, $result, $target)
     {
-        $i = count($this->report);
-        $this->report[$i]['id in DB'] = $id;
-        $this->report[$i]['event'] = $event;
-        $this->report[$i]['comment'] = $comment;
+        $i = count($this->report[$type]);
+        $this->report[$type][$i]['id'] = $id;
+        $this->report[$type][$i]['eancode'] = $eancode;
+        $this->report[$type][$i]['result'] = $result;
+        $this->report[$type][$i]['target'] = $target;
     }
 
     public function getExcelReport()
     {
         $document = new \PHPExcel();
 
-        $sheet = $document->setActiveSheetIndex(0);
+        $j = 0;
+        foreach ($this->report as $type => $data) {
 
-        $columnPosition = 0;
-        $startLine = 2;
+            $sheet = $document->createSheet($j);
+            $j++;
 
-        $sheet->setCellValueByColumnAndRow($columnPosition, $startLine, 'Отчёт');
-        $sheet->getStyleByColumnAndRow($columnPosition, $startLine)->getAlignment()->setHorizontal(\PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+            $sheet->setTitle($type);
 
-        $document->getActiveSheet()->mergeCellsByColumnAndRow($columnPosition, $startLine, $columnPosition+3, $startLine);
+            $columnPosition = 0;
+            $startLine = 2;
 
-        $startLine++;
+            $sheet->setCellValueByColumnAndRow($columnPosition, $startLine, $type);
+            $sheet->getStyleByColumnAndRow($columnPosition, $startLine)->getAlignment()->setHorizontal(\PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
 
-        $columns = ['№', 'ID записи в БД', 'Событие', 'Комментарий'];
+            $document->getActiveSheet()->mergeCellsByColumnAndRow($columnPosition, $startLine, $columnPosition + 3, $startLine);
 
-        $data = $this->report;
-
-        $currentColumn = $columnPosition;
-
-        foreach ($columns as $column)
-        {
-            $sheet->getStyleByColumnAndRow($currentColumn, $startLine)
-                ->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)
-                ->getStartColor()->setRGB('4abf62');
-
-            $sheet->getStyleByColumnAndRow($currentColumn, $startLine)
-                ->getAlignment()->setHorizontal(\PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
-
-            $sheet->setCellValueByColumnAndRow($currentColumn, $startLine, $column);
-
-            $currentColumn++;
-        }
-        foreach ($data as $key => $dataItem)
-        {
             $startLine++;
+
+            $columns = ['ID', 'eancode', 'Что нашли', 'Название поля'];
+
             $currentColumn = $columnPosition;
 
-            $sheet->setCellValueByColumnAndRow($currentColumn, $startLine, $key+1);
-            $sheet->getStyleByColumnAndRow($currentColumn, $startLine)->getAlignment()->setHorizontal(\PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+            foreach ($columns as $column) {
+                $sheet->getStyleByColumnAndRow($currentColumn, $startLine)
+                    ->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)
+                    ->getStartColor()->setRGB('4abf62');
 
-            foreach ($dataItem as $value)
-            {
+                $sheet->getStyleByColumnAndRow($currentColumn, $startLine)
+                    ->getAlignment()->setHorizontal(\PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+
+                $sheet->setCellValueByColumnAndRow($currentColumn, $startLine, $column);
+
                 $currentColumn++;
-                $sheet->setCellValueByColumnAndRow($currentColumn, $startLine, $value);
+            }
+            foreach ($data as $key => $dataItem) {
+                $startLine++;
+                $currentColumn = $columnPosition;
+
+                foreach ($dataItem as $value) {
+
+                    $sheet->setCellValueByColumnAndRow($currentColumn, $startLine, $value);
+                    $currentColumn++;
+                }
             }
         }
-
         $objWriter = \PHPExcel_IOFactory::createWriter($document, 'Excel5');
 
         $this->pathToReport = self::reportPath().'/report_'.date('d-m-Y_H-i-s').'.xls';

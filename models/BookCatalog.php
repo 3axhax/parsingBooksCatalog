@@ -187,49 +187,6 @@ class BookCatalog
         }
     }
 
-    private function checkFindNum10($row)
-    {
-        if ($this->checkExistIsbn($row)) return false;
-        $i = 0;
-        while (($num = $this->get10number(substr($row['description_ru'], $i))) && !empty($num))
-        {
-            if (!$this->isIsbn10Format($num[0][0])) {
-                $isbnWrong = explode(', ', $row['isbn_wrong']);
-                if (!in_array($num[0][0], $isbnWrong)) $this->saveWrongIsbn($num[0][0], $row);
-            }
-            else
-            {
-                if(!$this->checkSumEAN13('978'.$num[0][0])){
-                    $isbnWrong = explode(', ', $row['isbn_wrong']);
-                    if (!in_array($num[0][0], $isbnWrong)) $this->saveWrongIsbn($num[0][0], $row);
-                }
-                else $this->saveIsbn($num[0][0], $row);
-            }
-            $i += $num[0][1]+1;
-        }
-    }
-    private function checkFindNum13($row)
-    {
-        if ($this->checkExistIsbn($row)) return false;
-        $i = 0;
-        while (($num = $this->get13number(substr($row['description_ru'], $i))) && !empty($num))
-        {
-            if (!$this->isIsbn13Format($num[0][0])) {
-                $isbnWrong = explode(', ', $row['isbn_wrong']);
-                if (!in_array($num[0][0], $isbnWrong)) $this->saveWrongIsbn($num[0][0], $row);
-            }
-            else
-            {
-                if(!$this->checkSumEAN13($num[0][0])){
-                    $isbnWrong = explode(', ', $row['isbn_wrong']);
-                    if (!in_array($num[0][0], $isbnWrong)) $this->saveWrongIsbn($num[0][0], $row);
-                }
-                else $this->saveIsbn($num[0][0], $row);
-            }
-            $i += $num[0][1]+1;
-        }
-    }
-
     public function checkTable()
     {
         foreach ($this->dataFromTable as $row)

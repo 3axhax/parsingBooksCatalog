@@ -59,6 +59,12 @@ class BookCatalog
         return true;
     }
 
+    private function checkExistWrong($num, &$row)
+    {
+        $isbnWrong = explode(', ', $row['isbn_wrong']);
+        if (!in_array($num, $isbnWrong)) $this->saveWrongIsbn($num, $row);
+    }
+
     private function saveIsbn($isbn, &$row)
     {
         if ($row['isbn2'] == '') {
@@ -88,7 +94,7 @@ class BookCatalog
     }
     private function saveWrongIsbn($isbn, &$row)
     {
-        $column = 'isbn4';
+        $column = 'isbn_wrong';
         $this->writeNewReport('new', $row['id'], $row['eancode'], $isbn, 'isbn_wrong');
         if ($row['isbn_wrong'] == '') $value = $isbn;
         else $value = $row['isbn_wrong'].', '.$isbn;
@@ -111,43 +117,74 @@ class BookCatalog
         return $matches;
     }
 
-    private function checkExistIsbn($row)
+    private function checkExistIsbn($num, &$row)
     {
-        $isExist = false;
-        if ($num = preg_replace('/[^\d]/','',$row['description_ru']))
+        $realNum = preg_replace('/[^\d]/','',$num);
+        if (isset($row['isbn']) && ($row['isbn'] != '') && ($realNum == preg_replace('/[^\d]/','',$row['isbn']))) {
+            $this->writeNewReport('exist', $row['id'], $row['eancode'], $num, 'isbn');
+            return 'isbn';
+        }
+        if (isset($row['isbn2']) && ($row['isbn2'] != '') && ($realNum == preg_replace('/[^\d]/','',$row['isbn2']))) {
+            $this->writeNewReport('exist', $row['id'], $row['eancode'], $num, 'isbn2');
+            return 'isbn2';
+        }
+        if (isset($row['isbn3']) && ($row['isbn3'] != '') && ($realNum == preg_replace('/[^\d]/','',$row['isbn3']))) {
+            $this->writeNewReport('exist', $row['id'], $row['eancode'], $num, 'isbn3');
+            return 'isbn3';
+        }
+        if (isset($row['isbn4']) && ($row['isbn4'] != ''))
         {
-            if (strlen($num) > 9)
+            $isbn4 = explode(',', $row['isbn4']);
+            foreach ($isbn4 as $isbn)
             {
-                if (isset($row['isbn']) && ($row['isbn'] != '') && (strpos($num, preg_replace('/[^\d]/','',$row['isbn'])) !== false))
+                if ($realNum == preg_replace('/[^\d]/','',$isbn))
                 {
-                    $isExist = true;
-                    $this->writeNewReport('exist', $row['id'], $row['eancode'], preg_replace('/[^\d]/','',$row['isbn']), 'isbn');
-                }
-                if (isset($row['isbn2']) && ($row['isbn2'] != '') && (strpos($num, preg_replace('/[^\d]/','',$row['isbn2'])) !== false))
-                {
-                    $isExist = true;
-                    $this->writeNewReport('exist', $row['id'], $row['eancode'], preg_replace('/[^\d]/','',$row['isbn2']), 'isbn2');
-                }
-                if (isset($row['isbn3']) && ($row['isbn3'] != '') && (strpos($num, preg_replace('/[^\d]/','',$row['isbn3'])) !== false))
-                {
-                    $isExist = true;
-                    $this->writeNewReport('exist', $row['id'], $row['eancode'], preg_replace('/[^\d]/','',$row['isbn3']), 'isbn3');
-                }
-                if (isset($row['isbn4']) && ($row['isbn4'] != ''))
-                {
-                    $isbn4 = explode(',', $row['isbn4']);
-                    foreach ($isbn4 as $isbn)
-                    {
-                        if (strpos($num, substr(preg_replace('/[^\d]/','',$isbn), 3)) !== false)
-                        {
-                            $isExist = true;
-                            $this->writeNewReport('exist', $row['id'], $row['eancode'], preg_replace('/[^\d]/','',$isbn), 'isbn4');
-                        }
-                    }
+                    $this->writeNewReport('exist', $row['id'], $row['eancode'], $num, 'isbn4');
+                    return 'isbn4';
                 }
             }
         }
-        return $isExist;
+        $this->saveIsbn($num, $row);
+        return 'new';
+    }
+
+    private function findNum10(&$row)
+    {
+        $i = 0;
+        while (($num = $this->get10number(substr($row['description_ru'], $i))) && !empty($num))
+        {
+            if (!$this->isIsbn10Format($num[0][0])) {
+                $this->checkExistWrong($num[0][0], $row);
+            }
+            else {
+                if (!$this->checkSumEAN13('978'.$num[0][0])) {
+                    $this->checkExistWrong($num[0][0], $row);
+                }
+                else {
+                    $this->checkExistIsbn($num[0][0], $row);
+                }
+            }
+            $i += $num[0][1]+1;
+        }
+    }
+    private function findNum13(&$row)
+    {
+        $i = 0;
+        while (($num = $this->get13number(substr($row['description_ru'], $i))) && !empty($num))
+        {
+            if (!$this->isIsbn13Format($num[0][0])) {
+                $this->checkExistWrong($num[0][0], $row);
+            }
+            else {
+                if (!$this->checkSumEAN13($num[0][0])) {
+                    $this->checkExistWrong($num[0][0], $row);
+                }
+                else {
+                    $this->checkExistIsbn($num[0][0], $row);
+                }
+            }
+            $i += $num[0][1]+1;
+        }
     }
 
     private function checkFindNum10($row)
@@ -197,8 +234,8 @@ class BookCatalog
     {
         foreach ($this->dataFromTable as $row)
         {
-            $this->checkFindNum10($row);
-            $this->checkFindNum13($row);
+            $this->findNum10($row);
+            $this->findNum13($row);
         }
     }
 
@@ -255,7 +292,7 @@ class BookCatalog
 
                 foreach ($dataItem as $value) {
 
-                    $sheet->setCellValueByColumnAndRow($currentColumn, $startLine, $value);
+                    $sheet->setCellValueByColumnAndRow($currentColumn, $startLine, (string)$value);
                     $currentColumn++;
                 }
             }

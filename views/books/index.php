@@ -7,7 +7,7 @@
     </div>
 </form>
 <?php if(is_object($data) && isset($data->pathToReport)):?>
-    <br><a href="<?= $data->pathToReport ?>" class="btn btn-success">Загрузить последний отчет</a>
+    <br><a href="<?= $data->pathToReport ?>" class="btn btn-success">Загрузить последний отчет <span class="glyphicon glyphicon-download-alt"></a>
 <?php endif;?>
 <br>
 <!--<pre>

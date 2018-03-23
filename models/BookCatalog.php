@@ -7,9 +7,9 @@ use PDO;
 
 class BookCatalog
 {
-    const REG_10_NUMBER = "/[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}/";
+    const REG_10_NUMBER = "([\s\,;][\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[\s\,;])";
     const REG_ISBN10 = "/[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}/";
-    const REG_13_NUMBER = "/[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}/";
+    const REG_13_NUMBER = "([\s\,;][\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[—–−-]{0,5}[\d]{1}[\s\,;])";
     const REG_ISBN13 = "/[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}[—–−-]?[\d]{1}/";
     public $id;
     public $isbn;
@@ -38,6 +38,19 @@ class BookCatalog
     static protected function reportPath()
     {
         return 'report';
+    }
+
+    private function get10number($str)
+    {
+        preg_match(self::REG_10_NUMBER, $str, $matches, PREG_OFFSET_CAPTURE);
+        if (isset($matches[0][0]))$matches[0][0] = preg_replace('/[\s\,;]/', '', $matches[0][0]);
+        return $matches;
+    }
+    private function get13number($str)
+    {
+        preg_match(self::REG_13_NUMBER, $str, $matches, PREG_OFFSET_CAPTURE);
+        if (isset($matches[0][0]))$matches[0][0] = preg_replace('/[\s\,;]/', '', $matches[0][0]);
+        return $matches;
     }
 
     private function isIsbn10Format($str)
@@ -106,17 +119,6 @@ class BookCatalog
         $sql->execute();
     }
 
-    private function get10number($str)
-    {
-        preg_match(self::REG_10_NUMBER, $str, $matches, PREG_OFFSET_CAPTURE);
-        return $matches;
-    }
-    private function get13number($str)
-    {
-        preg_match(self::REG_13_NUMBER, $str, $matches, PREG_OFFSET_CAPTURE);
-        return $matches;
-    }
-
     private function checkExistIsbn($num, &$row)
     {
         $realNum = preg_replace('/[^\d]/','',$num);
@@ -151,13 +153,13 @@ class BookCatalog
     private function findNum10(&$row)
     {
         $i = 0;
-        while (($num = $this->get10number(substr($row['description_ru'], $i))) && !empty($num))
+        while (($num = $this->get10number(substr($row['description_ru'], $i).' ')) && !empty($num))
         {
             if (!$this->isIsbn10Format($num[0][0])) {
                 $this->checkExistWrong($num[0][0], $row);
             }
             else {
-                if (!$this->checkSumEAN13('978'.$num[0][0])) {
+                if (!($this->checkSumEAN13('978'.$num[0][0]) || $this->checkSumEAN13('979'.$num[0][0]))) {
                     $this->checkExistWrong($num[0][0], $row);
                 }
                 else {
@@ -170,7 +172,7 @@ class BookCatalog
     private function findNum13(&$row)
     {
         $i = 0;
-        while (($num = $this->get13number(substr($row['description_ru'], $i))) && !empty($num))
+        while (($num = $this->get13number(substr($row['description_ru'], $i). ' ')) && !empty($num))
         {
             if (!$this->isIsbn13Format($num[0][0])) {
                 $this->checkExistWrong($num[0][0], $row);
